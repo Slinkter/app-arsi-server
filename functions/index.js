@@ -27,12 +27,9 @@ exports.getScreams = functions.https.onRequest((req, res) => {
 
 exports.createScream = functions.https.onRequest((req, res) => {
   //
-    if (req.method !== 'POST') {
-        return res.status(400).json({error: 'se tiene que usar POST :V'})
-    }
-
-
-
+  if (req.method !== "POST") {
+    return res.status(400).json({ error: "se tiene que usar POST :V" });
+  }
 
   const newScream = {
     body: req.body.body,
@@ -50,7 +47,9 @@ exports.createScream = functions.https.onRequest((req, res) => {
       });
     })
     .catch(err => {
-      res.status(500).json({ error: "error al insertar el nuevo documento " });
+      res.status(500).json({ error: "error al insertar el nuevo documento " , message : err.message});
       console.error(err.message);
+      console.log(err);
+      
     });
 });
