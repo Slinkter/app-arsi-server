@@ -2,30 +2,38 @@ const functions = require("firebase-functions");
 const admin = require("firebase-admin");
 admin.initializeApp();
 
-// // Create and Deploy Your First Cloud Functions
-// // https://firebase.google.com/docs/functions/write-firebase-functions
-//
+const express = require("express");
+const app = express(); // nos ayuda a reducir : exports.getScreams = functions.https........
 
-exports.helloWorld = functions.https.onRequest((request, response) => {
-  response.send("Hello from Consulting ARSI");
-});
-
-exports.getScreams = functions.https.onRequest((req, res) => {
+app.get("/screams", (req, res) => {
   admin
     .firestore()
     .collection("screams")
+    //.orderBy('createdat','desc')
     .get()
     .then(data => {
       let array_screams = [];
+      // cuando solo uso doc.data() solo me muestra el conjunto sin ID
+      // esta esta nueva , se obtiene screamID,body,userHandle,createdAt juntos
+      // en una sola respuesta array_screams
+      // 
+      // cuando se agregar un ordeBy , se crea un index en firebase 
       data.forEach(doc => {
-        array_screams.push(doc.data());
+        array_screams.push({
+          screamId: doc.id,
+          body: doc.data().body,
+          userHandle: doc.data().userHandle,
+          createdAt: doc.data().createdAt
+        });
       });
       return res.json(array_screams);
     })
     .catch(err => console.error(err));
 });
 
-exports.createScream = functions.https.onRequest((req, res) => {
+// creo q es la ruta para enviar o nombre de la ruta para
+// enviar eso ... http:qwe.com/api/scream
+app.post("/scream", (req, res) => {
   //
   if (req.method !== "POST") {
     return res.status(400).json({ error: "se tiene que usar POST :V" });
@@ -34,7 +42,7 @@ exports.createScream = functions.https.onRequest((req, res) => {
   const newScream = {
     body: req.body.body,
     userHandle: req.body.userHandle,
-    createdAt: admin.firestore.Timestamp.fromDate(new Date())
+    createdAt: new Date().toISOString()
   };
 
   admin
@@ -47,9 +55,13 @@ exports.createScream = functions.https.onRequest((req, res) => {
       });
     })
     .catch(err => {
-      res.status(500).json({ error: "error al insertar el nuevo documento " , message : err.message});
+      res.status(500).json({
+        error: "error al insertar el nuevo documento ",
+        message: err.message
+      });
       console.error(err.message);
       console.log(err);
-      
     });
 });
+
+exports.api = functions.https.onRequest(app);
