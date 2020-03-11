@@ -73,6 +73,23 @@ app.post("/scream", (req, res) => {
     });
 });
 
+const isEmail = email => {
+  const emailRegEx = /^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
+  if (email.match(emailRegEx)) {
+    return true;
+  } else {
+    return false;
+  }
+};
+
+const isEmpty = string => {
+  if (string.trim() === "") {
+    return true;
+  } else {
+    return false;
+  }
+};
+
 app.post("/signup", (req, res) => {
   const newUser = {
     email: req.body.email,
@@ -82,6 +99,31 @@ app.post("/signup", (req, res) => {
   };
 
   //Validation
+  let array_errors = {};
+
+  if (isEmpty(newUser.email)) {
+    array_errors.email = "Email must  not be empty";
+  } else if (!isEmail(newUser.email)) {
+    array_errors.email = "Email :Must be a valid email address";
+  }
+
+  if (isEmpty(newUser.password)) {
+    array_errors.password = "Password : Must not be empty";
+  }
+
+  if (newUser.password !== newUser.confirmPassword) {
+    array_errors.confirmPassword = "Confirm : password must match";
+  }
+
+  if (isEmpty(newUser.handle)) {
+    array_errors.handle = "handle: Must not be empty";
+  }
+
+  if (Object.keys(array_errors).length > 0) {
+    return res.status(400).json(array_errors);
+  }
+
+  //
   let token, userId;
   db.doc(`/users/${newUser.handle}`)
     .get()
@@ -124,19 +166,41 @@ app.post("/signup", (req, res) => {
       }
     });
 
-  //   firebase
-  //     .auth()
-  //     .createUserWithEmailAndPassword(newUser.email, newUser.password)
-  //     .then(data => {
-  //       return res
-  //         .status(201)
-  //         .json({ message: `usuario creado con el id ${data.user.uid}` });
-  //     })
-  //     .catch(error => {
-  //       return res
-  //         .status(500)
-  //         .json({ error: error.code, message: error.message  });
-  //     });
+});
+
+app.post("/login", (req, res) => {
+  let array_errors = {};
+  const user = {
+    email: req.body.email,
+    password: req.body.password
+  };
+
+  if (isEmpty(user.email)) {
+    array_errors.email = "Must not be empty";
+  }
+  if (isEmpty(user.password)) {
+    array_errors.password = "Must no be empty"
+  }
+
+  if (Object.keys(array_errors).length > 0) {
+    return res.status(400).json(array_errors);
+  }
+
+  //eject
+  firebase
+    .auth()
+    .signInWithEmailAndPassword(user.email, user.password)
+    .then(data => {
+      return data.user.getIdToken();
+    })
+    .then(token => {
+      return res.json({ token });
+    })
+    .catch(error => {
+      return res
+        .status(500)
+        .json({ error: error.code, message: error.message });
+    });
 });
 
 exports.api = functions.https.onRequest(app);
