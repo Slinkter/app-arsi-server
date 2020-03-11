@@ -100,17 +100,18 @@ app.post("/signup", (req, res) => {
       userId = data.user.uid;
       return data.user.getIdToken();
     })
-    .then(token => {
-      token = token;
+    .then(idToken => {
+      token = idToken;
       const userCredentials = {
         handle: newUser.handle,
         email: newUser.email,
         createdAt: new Date().toISOString(),
         userId
       };
-
-      db.doc(`/users/${newUser.handle}`).set(userCredentials)
-
+      return db.doc(`/users/${newUser.handle}`).set(userCredentials);
+    })
+    .then(() => {
+      return res.status(201).json({ token });
     })
     .catch(error => {
       console.error(error);
