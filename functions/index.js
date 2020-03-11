@@ -1,14 +1,25 @@
 const functions = require("firebase-functions");
 const admin = require("firebase-admin");
+const app = require("express")(); // nos ayuda a reducir : exports.getScreams = functions.https........
 admin.initializeApp();
+//
+const firebaseConfig = {
+  apiKey: "AIzaSyBg2JtziH1dFOKyDBzP8cknyVxxsEapOWg",
+  authDomain: "consultingarsiapp.firebaseapp.com",
+  databaseURL: "https://consultingarsiapp.firebaseio.com",
+  projectId: "consultingarsiapp",
+  storageBucket: "consultingarsiapp.appspot.com",
+  messagingSenderId: "123916925541",
+  appId: "1:123916925541:web:8a2a04122ab8c635af648c",
+  measurementId: "G-WM31VMNJEQ"
+};
+const firebase = require("firebase");
+firebase.initializeApp(firebaseConfig);
 
-const express = require("express");
-const app = express(); // nos ayuda a reducir : exports.getScreams = functions.https........
-
+const db = admin.firestore();
+//
 app.get("/screams", (req, res) => {
-  admin
-    .firestore()
-    .collection("screams")
+  db.collection("screams")
     //.orderBy('createdat','desc')
     .get()
     .then(data => {
@@ -16,8 +27,8 @@ app.get("/screams", (req, res) => {
       // cuando solo uso doc.data() solo me muestra el conjunto sin ID
       // esta esta nueva , se obtiene screamID,body,userHandle,createdAt juntos
       // en una sola respuesta array_screams
-      // 
-      // cuando se agregar un ordeBy , se crea un index en firebase 
+      //
+      // cuando se agregar un ordeBy , se crea un index en firebase
       data.forEach(doc => {
         array_screams.push({
           screamId: doc.id,
@@ -45,9 +56,7 @@ app.post("/scream", (req, res) => {
     createdAt: new Date().toISOString()
   };
 
-  admin
-    .firestore()
-    .collection("screams")
+  db.collection("screams")
     .add(newScream)
     .then(doc => {
       res.json({
@@ -62,6 +71,71 @@ app.post("/scream", (req, res) => {
       console.error(err.message);
       console.log(err);
     });
+});
+
+app.post("/signup", (req, res) => {
+  const newUser = {
+    email: req.body.email,
+    password: req.body.password,
+    confirmPassword: req.body.confirmPassword,
+    handle: req.body.handle
+  };
+
+  //Validation
+  let token, userId;
+  db.doc(`/users/${newUser.handle}`)
+    .get()
+    .then(doc => {
+      if (doc.exists) {
+        return res
+          .status(400)
+          .json({ handle: "Ya existe el mismo handle ", message: doc.message });
+      } else {
+        return firebase
+          .auth()
+          .createUserWithEmailAndPassword(newUser.email, newUser.password);
+      }
+    })
+    .then(data => {
+      userId = data.user.uid;
+      return data.user.getIdToken();
+    })
+    .then(token => {
+      token = token;
+      const userCredentials = {
+        handle: newUser.handle,
+        email: newUser.email,
+        createdAt: new Date().toISOString(),
+        userId
+      };
+
+      db.doc(`/users/${newUser.handle}`).set(userCredentials)
+
+    })
+    .catch(error => {
+      console.error(error);
+      if (error.code === "auth/email-already-in-use") {
+        return res.status(400).json({ email: "El correo ya esta registrado" });
+      } else {
+        return res
+          .status(500)
+          .json({ error: error.code, message: error.message });
+      }
+    });
+
+  //   firebase
+  //     .auth()
+  //     .createUserWithEmailAndPassword(newUser.email, newUser.password)
+  //     .then(data => {
+  //       return res
+  //         .status(201)
+  //         .json({ message: `usuario creado con el id ${data.user.uid}` });
+  //     })
+  //     .catch(error => {
+  //       return res
+  //         .status(500)
+  //         .json({ error: error.code, message: error.message  });
+  //     });
 });
 
 exports.api = functions.https.onRequest(app);
